@@ -1,0 +1,16 @@
+question1 = 3
+question2 = 5
+question3 = 5
+question4 = 2
+question5 = 4
+question6 = 5
+question7 = 5
+question8 = 4
+question9 = 5
+question10 = 4
+question11 = 4
+question12 = 4
+question13 = 4
+question14 = 5
+question15 = 2
+question16 = 4

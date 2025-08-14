@@ -128,7 +128,7 @@ exports.getDrrayongFunction = async (req, res) => {
             const browser = await puppeteer.launch({
                 headless: false,
                 args: [
-                    '--ignore-certificate-errors', 
+                    '--ignore-certificate-errors',
                     '--disable-password-manager-reauthentication',
                     '--disable-save-password-bubble',
                     '--disable-notifications',
@@ -175,4 +175,96 @@ exports.getDrrayongFunction = async (req, res) => {
         res.status(500).json({ msg: `${err}` })
     }
 }
+
+exports.selectForm = async (req, res) => {
+    const browser = await puppeteer.launch({ headless: false });
+    const page = await browser.newPage();
+
+    await page.goto('https://forms.gle/QezKKxszckL5ze9f9', { waitUntil: 'networkidle2' });
+    await delay(1000);
+
+    await page.waitForSelector('.docssharedWizToggleLabeledContainer');
+    const allRadioButtons = await page.$$('.docssharedWizToggleLabeledContainer');
+
+    console.log(`📌 พบ radio buttons ทั้งหมด: ${allRadioButtons.length}`);
+
+    const questionOptions = [
+        3, 5, 5, 2, 4, 5, 5, 4, 5, 4, 4, 4, 4, 5, 2, 4
+    ];
+
+    let currentIndex = 0;
+
+    for (let i = 0; i < questionOptions.length; i++) {
+        const optionCount = questionOptions[i];
+
+        const group = allRadioButtons.slice(currentIndex, currentIndex + optionCount);
+
+        if (group.length !== optionCount) {
+            console.log(`❌ คำถามที่ ${i + 1} มีตัวเลือกไม่ครบ (คาดว่า ${optionCount}, พบ ${group.length})`);
+            continue;
+        }
+
+        const randomIndex = Math.floor(Math.random() * optionCount);
+        const selected = group[randomIndex];
+
+        console.log(`✅ คำถาม ${i + 1}: สุ่มเลือกตัวเลือกที่ ${randomIndex + 1} จาก ${optionCount} ตัวเลือก`);
+
+        await selected.evaluate(el => el.scrollIntoView());
+        await selected.click();
+        await delay(1000);
+
+        currentIndex += optionCount;
+    }
+
+    await delay(1000);
+
+    await page.waitForSelector('.whsOnd');
+    const textInputs = await page.$$('.whsOnd');
+
+    if (textInputs.length > 0) {
+        //คุณอาศัยอยู่ในพื้นที่จังหวัดใดของประเทศไทย *
+        await textInputs[0].type('ชลบุรี');
+        await delay(1000);
+        //ความเห็นของคุณเกี่ยวกับแนวโน้มการใช้โดรน/ยานพาหนะไร้คนขับในการขนส่ง (ตอบสั้นๆ)
+        await textInputs[1].type('สินค้าอาจจะไม่ปลอดภัยเท่ากับการส่งด้วยมนุษย์');
+        await delay(1000);
+        //ข้อเสนอแนะเพิ่มเติมต่อผู้ให้บริการขนส่ง/โลจิสติกส์
+        await textInputs[2].type('อยากให้บางพื้นที่โทนแจ้งก่อนที่จะเข้ามาส่งไม่เกิน 30 นาที');
+        await delay(1000);
+    }
+
+    await clickStar(page, 0, 3); // คำถามที่ 1 → 3 ดาว
+    await clickStar(page, 1, 4); // คำถามที่ 2 → 4 ดาว
+
+    await page.waitForSelector('span.NPEfkd.RveJvd.snByac');
+    await delay(1000);
+
+    await page.evaluate(() => {
+        const buttons = Array.from(document.querySelectorAll('span'));
+        const sendButton = buttons.find(el => el.textContent.trim() === 'ส่ง');
+        if (sendButton) {
+            sendButton.scrollIntoView();
+            sendButton.click();
+        }
+    });
+
+    // รอโหลดหน้าถัดไป (optional)
+    await page.waitForNavigation({ waitUntil: 'networkidle2' });
+
+    res.send("Success");
+}
+
+async function clickStar(page, questionIndex, starValue) {
+    const stars = await page.$$(`[role="radio"][aria-label="${starValue}"]`);
+    if (stars.length > questionIndex) {
+        await stars[questionIndex].evaluate(el => el.scrollIntoView());
+        await stars[questionIndex].click();
+        console.log(`✅ คลิก ${starValue} ดาว ในคำถามที่ ${questionIndex + 1}`);
+        await delay(1000);
+    } else {
+        console.log(`❌ ไม่พบ ${starValue} ดาว ในคำถามที่ ${questionIndex + 1}`);
+    }
+}
+
+const delay = ms => new Promise(res => setTimeout(res, ms));
 
